@@ -6,8 +6,15 @@ import {
   actualizarEstudiante,
   eliminarEstudiante
 } from '../controllers/estudiante.controller';
+import programaRoutes from './programa.routes';
+import documentoRoutes from './documento.routes';
 
 const router = Router();
+
+// NUEVO: Sub-recursos anidados bajo /estudiantes, según la arquitectura
+// acordada por el equipo (única ruta/base path principal por microservicio).
+router.use('/programas', programaRoutes);
+router.use('/documentos', documentoRoutes);
 
 /**
  * @swagger
@@ -46,7 +53,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/estudiantes:
+ * /estudiantes:
  *   get:
  *     summary: Obtiene la lista de estudiantes
  *     description: Retorna estudiantes con soporte para paginación, ordenamiento y filtros.
@@ -94,7 +101,7 @@ router.get('/', obtenerEstudiantes);
 
 /**
  * @swagger
- * /api/estudiantes/{id}:
+ * /estudiantes/{id}:
  *   get:
  *     summary: Obtiene un estudiante por ID
  *     description: Endpoint crítico que consumirá el Gateway para el orquestador (BFF).
@@ -114,7 +121,7 @@ router.get('/:id', obtenerEstudiantePorId);
 
 /**
  * @swagger
- * /api/estudiantes:
+ * /estudiantes:
  *   post:
  *     summary: Crea un nuevo estudiante
  *     requestBody:
@@ -133,7 +140,7 @@ router.post('/', crearEstudiante);
 
 /**
  * @swagger
- * /api/estudiantes/{id}:
+ * /estudiantes/{id}:
  *   put:
  *     summary: Actualiza un estudiante existente
  *     parameters:
@@ -158,7 +165,7 @@ router.put('/:id', actualizarEstudiante);
 
 /**
  * @swagger
- * /api/estudiantes/{id}:
+ * /estudiantes/{id}:
  *   delete:
  *     summary: Elimina un estudiante
  *     parameters:

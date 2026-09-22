@@ -91,7 +91,7 @@ Crear un archivo `.env` en la raíz del proyecto basándose en la siguiente conf
 
 | Variable | Descripción | Valor por defecto |
 |----------|-------------|-------------------|
-| `PORT` | Puerto de exposición del servicio | `3000` |
+| `PORT` | Puerto de exposición del servicio | `3001` |
 | `MONGODB_URI` | Cadena de conexión a Atlas | `mongodb+srv://<user>:<password>@cluster-lab3...` |
 
 ### 3. Ejecución
@@ -103,7 +103,7 @@ Crear un archivo `.env` en la raíz del proyecto basándose en la siguiente conf
     npm run build
     npm start
 
-El servidor iniciará en `http://localhost:3000`.
+El servidor iniciará en `http://localhost:3001`.
 
 ---
 
@@ -113,7 +113,7 @@ La documentación completa de los esquemas y la interfaz de pruebas "Try it out"
 
 | Recurso | URL local |
 |---------|-----------|
-| **Swagger UI** | `http://localhost:3000/docs` |
+| **Swagger UI** | `http://localhost:3001/docs` |
 
 ---
 
@@ -122,20 +122,20 @@ La documentación completa de los esquemas y la interfaz de pruebas "Try it out"
 ### Estudiantes
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `POST` | `/api/estudiantes` | Crea un estudiante |
-| `GET`  | `/api/estudiantes` | Listar con paginación, filtros y ordenamiento |
-| `GET`  | `/api/estudiantes/:id` | Obtener por ID (Popula el objeto `programa`) |
-| `PUT`  | `/api/estudiantes/:id` | Actualizar registro completo |
-| `PATCH`| `/api/estudiantes/:id` | Actualización parcial de campos |
-| `DELETE`| `/api/estudiantes/:id`| Eliminar estudiante |
+| `POST` | `/estudiantes` | Crea un estudiante |
+| `GET`  | `/estudiantes` | Listar con paginación, filtros y ordenamiento |
+| `GET`  | `/estudiantes/:id` | Obtener por ID (Popula el objeto `programa`) |
+| `PUT`  | `/estudiantes/:id` | Actualizar registro completo |
+| `PATCH`| `/estudiantes/:id` | Actualización parcial de campos |
+| `DELETE`| `/estudiantes/:id`| Eliminar estudiante |
 
-*(Nota: Los endpoints CRUD para `/api/programas` y `/api/documentos` siguen exactamente la misma convención REST. Consultar Swagger para más detalles).*
+*(Nota: Los endpoints CRUD para `/estudiantes/programas` y `/estudiantes/documentos` siguen exactamente la misma convención REST. Consultar Swagger para más detalles).*
 
 ---
 
 ## Paginación y Filtros
 
-El endpoint de listado (`GET /api/estudiantes`) soporta características avanzadas a través de *query parameters*:
+El endpoint de listado (`GET /estudiantes`) soporta características avanzadas a través de *query parameters*:
 
 - **Paginación:** `?pageNumber=1&pageSize=20`
 - **Filtros:** `?ciudad=Tunja&programa={id}`
@@ -182,10 +182,10 @@ El endpoint de listado (`GET /api/estudiantes`) soporta características avanzad
 
 ## Notas Críticas de Integración (Para API Gateway)
 
-1. **Gestión de Puertos:** Para evitar conflictos en la máquina local del Gateway, este módulo opera reservadamente en el puerto **`3000`** (Inscripciones usa `3003` y Materias `3001` u `8082`).
+1. **Gestión de Puertos:** Para evitar conflictos en la máquina local del Gateway, este módulo opera reservadamente en el puerto **`3001`** (el API Gateway usa `3000`, Materias `3002` e Inscripciones `3003`).
 2. **Despliegue Cloud (Base de Datos):** A diferencia de otros módulos que requieren levantar contenedores de PostgreSQL o MongoDB en local, **este módulo utiliza MongoDB Atlas**. Los datos persisten en la nube, por lo que el Gateway no necesita correr scripts locales de inicialización para consumir la API de estudiantes.
-3. **Población (Populate):** Al consultar un estudiante por ID, Mongoose automáticamente inyecta el objeto completo del programa académico asociado. El Gateway no necesita hacer una segunda petición a `/api/programas`.
-4. **Relación de Documentos:** Para obtener los documentos de identidad asociados a un estudiante, el Gateway debe realizar un `GET` a `/api/documentos?estudianteId={id}`.
+3. **Población (Populate):** Al consultar un estudiante por ID, Mongoose automáticamente inyecta el objeto completo del programa académico asociado. El Gateway no necesita hacer una segunda petición a `/estudiantes/programas`.
+4. **Relación de Documentos:** Para obtener los documentos de identidad asociados a un estudiante, el Gateway debe realizar un `GET` a `/estudiantes/documentos?estudianteId={id}`.
 
 ---
 

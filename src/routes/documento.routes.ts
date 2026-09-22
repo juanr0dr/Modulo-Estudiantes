@@ -32,7 +32,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/documentos:
+ * /estudiantes/documentos:
  *   get:
  *     summary: Obtiene la lista de documentos
  *     parameters:
@@ -49,7 +49,7 @@ router.get('/', obtenerDocumentos);
 
 /**
  * @swagger
- * /api/documentos/{id}:
+ * /estudiantes/documentos/{id}:
  *   get:
  *     summary: Obtiene un documento por ID
  *     parameters:
@@ -66,7 +66,7 @@ router.get('/:id', obtenerDocumentoPorId);
 
 /**
  * @swagger
- * /api/documentos:
+ * /estudiantes/documentos:
  *   post:
  *     summary: Crea un nuevo documento para un estudiante
  *     requestBody:
@@ -83,7 +83,7 @@ router.post('/', crearDocumento);
 
 /**
  * @swagger
- * /api/documentos/{id}:
+ * /estudiantes/documentos/{id}:
  *   put:
  *     summary: Actualiza un documento existente
  *     parameters:
@@ -106,7 +106,7 @@ router.put('/:id', actualizarDocumento);
 
 /**
  * @swagger
- * /api/documentos/{id}:
+ * /estudiantes/documentos/{id}:
  *   delete:
  *     summary: Elimina un documento
  *     parameters:

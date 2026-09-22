@@ -30,7 +30,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/programas:
+ * /estudiantes/programas:
  *   get:
  *     summary: Obtiene la lista de todos los programas académicos
  *     responses:
@@ -41,7 +41,7 @@ router.get('/', obtenerProgramas);
 
 /**
  * @swagger
- * /api/programas/{id}:
+ * /estudiantes/programas/{id}:
  *   get:
  *     summary: Obtiene un programa por ID
  *     parameters:
@@ -58,7 +58,7 @@ router.get('/:id', obtenerProgramaPorId);
 
 /**
  * @swagger
- * /api/programas:
+ * /estudiantes/programas:
  *   post:
  *     summary: Crea un nuevo programa
  *     requestBody:
@@ -75,7 +75,7 @@ router.post('/', crearPrograma);
 
 /**
  * @swagger
- * /api/programas/{id}:
+ * /estudiantes/programas/{id}:
  *   put:
  *     summary: Actualiza un programa existente
  *     parameters:
@@ -98,7 +98,7 @@ router.put('/:id', actualizarPrograma);
 
 /**
  * @swagger
- * /api/programas/{id}:
+ * /estudiantes/programas/{id}:
  *   delete:
  *     summary: Elimina un programa
  *     parameters:
