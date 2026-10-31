@@ -1,21 +1,19 @@
+// Primero: cargar .env antes de que cualquier módulo (p. ej. config/s3) lea process.env
+import 'dotenv/config';
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
-import dns from 'dns';
-
-// NUEVO: Importar (registrar) los modelos en Mongoose antes de usarlos
-import './models/Programa';
-import './models/Documento';
-import './models/Estudiante';
+import path from 'path';
+import { prisma } from './config/prisma';
 
 // NUEVO: Importamos las rutas de estudiante (incluye anidadas /programas y /documentos)
-import estudianteRoutes from './routes/estudiante.routes'; 
+import estudianteRoutes from './routes/estudiante.routes';
 
-dotenv.config();
-dns.setServers(['8.8.8.8']);
+if (!process.env.DATABASE_URL) {
+  throw new Error('La variable de entorno DATABASE_URL no está definida');
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -50,17 +48,25 @@ const swaggerOptions = {
       }
     ]
   },
-  apis: ['./src/routes/*.ts'], // Asegúrate de que apunte a la carpeta routes
+  // Relativo al código en ejecución: src/routes/*.ts con tsx, dist/routes/*.js en el
+  // contenedor (tsc conserva los comentarios JSDoc al compilar)
+  apis: [path.join(__dirname, 'routes', '*.{ts,js}')],
 };
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// Conexión a MongoDB
-mongoose.connect(process.env.MONGODB_URI as string)
-  .then(() => console.log('🔥 Conectado a MongoDB (Módulo Estudiantes)'))
-  .catch((err) => console.error('Error conectando a MongoDB', err));
+// Conexión a PostgreSQL
+prisma.$connect()
+  .then(() => console.log('🔥 Conectado a PostgreSQL (Módulo Estudiantes)'))
+  .catch((err) => console.error('Error conectando a PostgreSQL', err));
 
-// Ruta de salud/entrada del microservicio.
+// Health check para App Runner / ECS / Docker: pública, sin consultar la base de datos
+// (si PostgreSQL falla, reiniciar el contenedor no lo arreglaría).
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'UP' });
+});
+
+// Ruta de entrada del microservicio.
 app.get('/', (_req, res) => {
   res.json({
     message: 'Módulo Estudiantes funcionando',
