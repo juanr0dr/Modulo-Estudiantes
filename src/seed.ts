@@ -1,18 +1,17 @@
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import { Programa } from './models/Programa';
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
 
-dotenv.config();
+const prisma = new PrismaClient();
 
 const programasFijos = [
   {
-    _id: new mongoose.Types.ObjectId('60d5ec49f1b2c8b1f8e4e1a1'), // ID fijo que le darás a tus compañeros
+    id: '60d5ec49f1b2c8b1f8e4e1a1', // ID fijo que le darás a tus compañeros
     nombre: 'Ingeniería de Sistemas y Computación',
     codigo: 'ISC-001',
     facultad: 'Ingeniería'
   },
   {
-    _id: new mongoose.Types.ObjectId('60d5ec49f1b2c8b1f8e4e1a2'), // ID fijo
+    id: '60d5ec49f1b2c8b1f8e4e1a2', // ID fijo
     nombre: 'Administración de Empresas',
     codigo: 'ADM-002',
     facultad: 'Ciencias Económicas'
@@ -21,18 +20,20 @@ const programasFijos = [
 
 const poblarBaseDeDatos = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI as string);
-    console.log('Conectado a MongoDB para poblar datos...');
+    console.log('Conectado a PostgreSQL para poblar datos...');
 
-    // Limpiamos los programas anteriores e insertamos los fijos
-    await Programa.deleteMany();
-    await Programa.insertMany(programasFijos);
+    // upsert: se puede ejecutar varias veces sin duplicar y sin borrar
+    // programas que ya tengan estudiantes asociados
+    for (const { id, ...datos } of programasFijos) {
+      await prisma.programa.upsert({ where: { id }, update: datos, create: { id, ...datos } });
+    }
 
     console.log('✅ Programas iniciales insertados con éxito.');
-    process.exit(0);
   } catch (error) {
     console.error('Error poblando la base de datos', error);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    await prisma.$disconnect();
   }
 };
 
