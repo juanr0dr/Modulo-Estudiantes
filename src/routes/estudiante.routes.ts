@@ -6,6 +6,8 @@ import {
   actualizarEstudiante,
   eliminarEstudiante
 } from '../controllers/estudiante.controller';
+import { subirFotografia } from '../controllers/fotografia.controller';
+import { recibirFotografia } from '../middlewares/subidaFotografia';
 import programaRoutes from './programa.routes';
 import documentoRoutes from './documento.routes';
 
@@ -49,6 +51,28 @@ router.use('/documentos', documentoRoutes);
  *           description: ID del programa en MongoDB
  *         contacto:
  *           $ref: '#/components/schemas/Contacto'
+ *         fotografia:
+ *           $ref: '#/components/schemas/Fotografia'
+ *     Fotografia:
+ *       type: object
+ *       readOnly: true
+ *       description: Metadatos de la fotografía almacenada en AWS S3 (solo se modifica con POST /api/estudiantes/{id}/fotografia)
+ *       properties:
+ *         clave_s3:
+ *           type: string
+ *           example: estudiantes/6501f8a2c9d4e5f6a7b8c9d0/fotografia/3f1c9a2e-7b4d-4e8a-9c1f-2d6b8e0a4c7f.jpg
+ *         nombre_original:
+ *           type: string
+ *           example: foto-carnet.jpg
+ *         tipo_mime:
+ *           type: string
+ *           enum: [image/jpeg, image/png]
+ *         tamano_bytes:
+ *           type: integer
+ *           example: 184320
+ *         url:
+ *           type: string
+ *           description: URL firmada temporal (1 hora) para mostrar la imagen; no se guarda en la base de datos
  */
 
 /**
@@ -191,5 +215,43 @@ router.put('/:id', actualizarEstudiante);
  *         description: Estudiante no encontrado.
  */
 router.delete('/:id', eliminarEstudiante);
+
+/**
+ * @swagger
+ * /api/estudiantes/{id}/fotografia:
+ *   post:
+ *     summary: Sube o reemplaza la fotografía del estudiante
+ *     tags:
+ *       - Estudiantes
+ *     description: El archivo se envía directamente a AWS S3; en MongoDB solo se guardan sus metadatos. Solo JPG o PNG, máximo 2 MB.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fotografia
+ *             properties:
+ *               fotografia:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Fotografía subida; devuelve el estudiante con los metadatos y la URL firmada.
+ *       400:
+ *         description: Falta el archivo, el formato no es JPG/PNG o el ID es inválido.
+ *       404:
+ *         description: Estudiante no encontrado.
+ *       413:
+ *         description: La fotografía supera los 2 MB.
+ */
+router.post('/:id/fotografia', recibirFotografia, subirFotografia);
 
 export default router;
