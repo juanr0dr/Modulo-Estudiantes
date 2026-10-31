@@ -1,0 +1,15 @@
+# PostgreSQL local para desarrollo (en producción se usa AWS RDS).
+# Base independiente del módulo Estudiantes; puerto 5434 para no chocar con las de otros módulos.
+services:
+  postgres:
+    image: postgres:16
+    container_name: estudiantes-postgres
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5434:5432"
+    volumes:
+      - estudiantes-data:/var/lib/postgresql/data
+
+volumes:
+  estudiantes-data:
