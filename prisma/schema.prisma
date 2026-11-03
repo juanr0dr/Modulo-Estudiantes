@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Los ids conservan el formato de ObjectId (24 hex) que usaba MongoDB, para no
+// alterar el contrato del API (_id) ni las referencias que guardan otros módulos
+// (p. ej. estudianteId en Inscripciones o los ids fijos de los programas).
+
+model Programa {
+  id        String   @id @db.VarChar(24)
+  nombre    String   @db.VarChar(150)
+  codigo    String   @unique @db.VarChar(50)
+  facultad  String   @db.VarChar(150)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  estudiantes Estudiante[]
+
+  @@map("programas")
+}
+
+model Estudiante {
+  id              String   @id @db.VarChar(24)
+  nombre          String   @db.VarChar(100)
+  apellido        String   @db.VarChar(100)
+  correo          String   @unique @db.VarChar(150)
+  fechaNacimiento DateTime @map("fecha_nacimiento")
+  programaId      String   @map("programa_id") @db.VarChar(24)
+  programa        Programa @relation(fields: [programaId], references: [id], onDelete: Restrict)
+  // Contacto (relación 1:1 embebida en Mongo): columnas de la misma tabla
+  telefono        String   @map("contacto_telefono") @db.VarChar(30)
+  direccion       String   @map("contacto_direccion") @db.VarChar(200)
+  ciudad          String   @map("contacto_ciudad") @db.VarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  fotografia FotografiaEstudiante?
+  documentos Documento[]
+
+  @@index([programaId])
+  @@index([ciudad])
+  @@map("estudiantes")
+}
+
+// Metadatos de la fotografía almacenada en AWS S3 (el archivo no se guarda en la base)
+model FotografiaEstudiante {
+  estudianteId   String     @id @map("estudiante_id") @db.VarChar(24)
+  estudiante     Estudiante @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+  claveS3        String     @unique @map("clave_s3") @db.VarChar(512)
+  nombreOriginal String     @map("nombre_original") @db.VarChar(255)
+  tipoMime       String     @map("tipo_mime") @db.VarChar(50)
+  tamanoBytes    Int        @map("tamano_bytes")
+
+  @@map("fotografias_estudiante")
+}
+
+model Documento {
+  id           String     @id @db.VarChar(24)
+  tipo         String     @db.VarChar(30)
+  numero       String     @unique @db.VarChar(50)
+  estudianteId String     @map("estudiante_id") @db.VarChar(24)
+  estudiante   Estudiante @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([estudianteId])
+  @@map("documentos")
+}

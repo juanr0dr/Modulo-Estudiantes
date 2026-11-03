@@ -22,8 +22,15 @@ if (names.includes('programa_id')) {
   throw new Error('Swagger todavía contiene el parámetro obsoleto programa_id.');
 }
 
-if (fs.existsSync('.env')) {
-  throw new Error('El archivo .env real no debe formar parte de la entrega.');
+// El .env local puede existir para desarrollar, pero nunca debe entregarse ni entrar
+// en la imagen Docker: debe estar excluido en .gitignore y .dockerignore.
+const ignora = (archivo) =>
+  fs.existsSync(archivo) && fs.readFileSync(archivo, 'utf8').split(/\r?\n/).map((l) => l.trim()).includes('.env');
+if (!ignora('.gitignore')) {
+  throw new Error('.gitignore debe excluir el archivo .env real.');
+}
+if (!ignora('.dockerignore')) {
+  throw new Error('.dockerignore debe excluir el archivo .env real.');
 }
 if (!fs.existsSync('.env.example')) {
   throw new Error('Falta .env.example.');
@@ -39,5 +46,5 @@ if (readme.includes('| `PATCH`| `/api/estudiantes/:id`')) {
 
 console.log('Smoke tests: OK');
 console.log(`Swagger GET /api/estudiantes: ${names.join(', ')}`);
-console.log('Entrega: .env ausente y .env.example presente.');
+console.log('Entrega: .env excluido en .gitignore y .dockerignore; .env.example presente.');
 console.log('README: PUT /api/estudiantes/:id documentado correctamente.');
