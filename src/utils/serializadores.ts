@@ -46,6 +46,7 @@ export const serializarEstudiante = (estudiante: EstudianteConRelaciones) => ({
     direccion: estudiante.direccion,
     ciudad: estudiante.ciudad,
   },
+  estado: estudiante.estado, // ACTIVO | INACTIVO ("no borrar, usar estados")
   ...(estudiante.fotografia && { fotografia: serializarFotografia(estudiante.fotografia) }),
   createdAt: estudiante.createdAt,
   updatedAt: estudiante.updatedAt,

@@ -2,7 +2,9 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { generarId } from '../utils/objectId';
 import { serializarPrograma } from '../utils/serializadores';
-import { Campos, describirError, esNoEncontrado, esReferenciaEnUso, validar } from '../utils/validacion';
+import {
+  Campos, ERRORES_NEGOCIO, describirError, esNoEncontrado, esReferenciaEnUso, tipoErrorNegocio, validar,
+} from '../utils/validacion';
 
 const CAMPOS_PROGRAMA: Campos = {
   nombre: { tipo: 'string', requerido: true },
@@ -17,6 +19,7 @@ export const crearPrograma = async (req: Request, res: Response): Promise<any> =
     const programaGuardado = await prisma.programa.create({ data: { id: generarId(), ...datos } as any });
     res.status(201).json(serializarPrograma(programaGuardado));
   } catch (error) {
+    res.locals.errorType = tipoErrorNegocio(error);
     res.status(400).json({ mensaje: 'Error al crear el programa', error: describirError(error) });
   }
 };
@@ -36,6 +39,7 @@ export const obtenerProgramaPorId = async (req: Request, res: Response): Promise
   try {
     const programa = await prisma.programa.findUnique({ where: { id: req.params.id as string } });
     if (!programa) {
+      res.locals.errorType = ERRORES_NEGOCIO.programaNoExiste;
       return res.status(404).json({ mensaje: 'Programa no encontrado' });
     }
     res.status(200).json(serializarPrograma(programa));
@@ -55,8 +59,10 @@ export const actualizarPrograma = async (req: Request, res: Response): Promise<a
     res.status(200).json(serializarPrograma(programaActualizado));
   } catch (error) {
     if (esNoEncontrado(error)) {
+      res.locals.errorType = ERRORES_NEGOCIO.programaNoExiste;
       return res.status(404).json({ mensaje: 'Programa no encontrado' });
     }
+    res.locals.errorType = tipoErrorNegocio(error);
     res.status(400).json({ mensaje: 'Error al actualizar el programa', error: describirError(error) });
   }
 };
@@ -68,10 +74,12 @@ export const eliminarPrograma = async (req: Request, res: Response): Promise<any
     res.status(204).send();
   } catch (error) {
     if (esNoEncontrado(error)) {
+      res.locals.errorType = ERRORES_NEGOCIO.programaNoExiste;
       return res.status(404).json({ mensaje: 'Programa no encontrado' });
     }
     // La llave foránea impide dejar estudiantes apuntando a un programa inexistente
     if (esReferenciaEnUso(error)) {
+      res.locals.errorType = ERRORES_NEGOCIO.programaConEstudiantes;
       return res.status(409).json({ mensaje: 'No se puede eliminar el programa porque tiene estudiantes asociados' });
     }
     res.status(500).json({ mensaje: 'Error al eliminar el programa', error: describirError(error) });

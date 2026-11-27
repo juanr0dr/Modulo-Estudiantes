@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { generarId } from '../utils/objectId';
 import { serializarDocumento } from '../utils/serializadores';
-import { Campos, describirError, esNoEncontrado, validar } from '../utils/validacion';
+import { Campos, ERRORES_NEGOCIO, describirError, esNoEncontrado, tipoErrorNegocio, validar } from '../utils/validacion';
 
 const CAMPOS_DOCUMENTO: Campos = {
   tipo: { tipo: 'string', requerido: true }, // Ej: 'CC', 'TI', 'Pasaporte'
@@ -27,6 +27,7 @@ export const crearDocumento = async (req: Request, res: Response): Promise<any> 
     });
     res.status(201).json(serializarDocumento(documentoGuardado));
   } catch (error) {
+    res.locals.errorType = tipoErrorNegocio(error);
     res.status(400).json({ mensaje: 'Error al crear documento', error: describirError(error) });
   }
 };
@@ -57,6 +58,7 @@ export const obtenerDocumentoPorId = async (req: Request, res: Response): Promis
       include: INCLUIR_ESTUDIANTE,
     });
     if (!documento) {
+      res.locals.errorType = ERRORES_NEGOCIO.documentoNoExiste;
       return res.status(404).json({ mensaje: 'Documento no encontrado' });
     }
     res.status(200).json(serializarDocumento(documento));
@@ -75,8 +77,10 @@ export const actualizarDocumento = async (req: Request, res: Response): Promise<
     res.status(200).json(serializarDocumento(documentoActualizado));
   } catch (error) {
     if (esNoEncontrado(error)) {
+      res.locals.errorType = ERRORES_NEGOCIO.documentoNoExiste;
       return res.status(404).json({ mensaje: 'Documento no encontrado' });
     }
+    res.locals.errorType = tipoErrorNegocio(error);
     res.status(400).json({ mensaje: 'Error al actualizar', error: describirError(error) });
   }
 };
@@ -88,6 +92,7 @@ export const eliminarDocumento = async (req: Request, res: Response): Promise<an
     res.status(204).send();
   } catch (error) {
     if (esNoEncontrado(error)) {
+      res.locals.errorType = ERRORES_NEGOCIO.documentoNoExiste;
       return res.status(404).json({ mensaje: 'Documento no encontrado' });
     }
     res.status(500).json({ mensaje: 'Error al eliminar', error: describirError(error) });
