@@ -112,3 +112,37 @@ export const esNoEncontrado = (error: unknown): boolean =>
 // Prisma lanza P2003 cuando se viola una llave foránea (p. ej. eliminar un programa con estudiantes)
 export const esReferenciaEnUso = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
+
+
+// Códigos de error de negocio para el datalake: el controlador los deja en
+// res.locals.errorType (no cambian el cuerpo de la respuesta salvo donde se indica).
+export const ERRORES_NEGOCIO = {
+  estudianteNoExiste: 'EstudianteNoExiste',
+  programaNoExiste: 'ProgramaNoExiste',
+  documentoNoExiste: 'DocumentoNoExiste',
+  programaConEstudiantes: 'ProgramaConEstudiantes',
+  estadoInvalido: 'EstadoInvalido',
+  datosInvalidos: 'DatosInvalidos',
+  registroDuplicado: 'RegistroDuplicado',
+  referenciaInexistente: 'ReferenciaInexistente',
+  idInvalido: 'IdInvalido',
+  fotografiaFaltante: 'FotografiaFaltante',
+  fotografiaFormatoInvalido: 'FotografiaFormatoInvalido',
+  fotografiaMuyGrande: 'FotografiaMuyGrande',
+} as const;
+
+/**
+ * Clasifica los errores de negocio que llegan a los catch de los controladores
+ * (validación, correo/número duplicado, programa/estudiante referenciado inexistente).
+ * Devuelve undefined para errores técnicos (base de datos caída, etc.).
+ */
+export const tipoErrorNegocio = (error: unknown): string | undefined => {
+  if (error instanceof ValidationError) {
+    return error.errors.estado ? ERRORES_NEGOCIO.estadoInvalido : ERRORES_NEGOCIO.datosInvalidos;
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') return ERRORES_NEGOCIO.registroDuplicado;
+    if (error.code === 'P2003') return ERRORES_NEGOCIO.referenciaInexistente;
+  }
+  return undefined;
+};

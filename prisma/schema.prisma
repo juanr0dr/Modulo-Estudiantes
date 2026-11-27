@@ -36,6 +36,8 @@ model Estudiante {
   telefono        String   @map("contacto_telefono") @db.VarChar(30)
   direccion       String   @map("contacto_direccion") @db.VarChar(200)
   ciudad          String   @map("contacto_ciudad") @db.VarChar(100)
+  // "No borrar, usar estados": DELETE marca INACTIVO; CHECK (ACTIVO|INACTIVO) en la migración
+  estado          String   @default("ACTIVO") @db.VarChar(10)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -44,6 +46,7 @@ model Estudiante {
 
   @@index([programaId])
   @@index([ciudad])
+  @@index([estado])
   @@map("estudiantes")
 }
 

@@ -55,7 +55,9 @@ Tablas: `programas`, `estudiantes` (con las columnas de contacto), `documentos`
 y `fotografias_estudiante` (metadatos de la foto en S3, relación 1:1). Las llaves
 foráneas son internas al módulo: `estudiantes.programa_id` → `programas` (no se
 puede borrar un programa con estudiantes: `409`), y `documentos` / fotografía →
-`estudiantes` (se borran en cascada con el estudiante).
+`estudiantes`. Los estudiantes no se borran: `DELETE` los marca con
+`estado = 'INACTIVO'` (columna `estado`, `ACTIVO` por defecto) y conserva sus
+documentos y su fotografía; `PUT` con `"estado": "ACTIVO"` los reactiva.
 
 Los ids conservan el formato de ObjectId (24 caracteres hex) y las respuestas
 mantienen el mismo JSON de la versión con MongoDB (`_id`, `programa` poblado,
@@ -160,7 +162,7 @@ La documentación completa de los esquemas y la interfaz de pruebas "Try it out"
 | `GET`  | `/api/estudiantes` | Listar con paginación, filtros y ordenamiento |
 | `GET`  | `/api/estudiantes/:id` | Obtener por ID (Popula el objeto `programa`) |
 | `PUT`  | `/api/estudiantes/:id` | Actualizar registro |
-| `DELETE`| `/api/estudiantes/:id`| Eliminar estudiante |
+| `DELETE`| `/api/estudiantes/:id`| Desactivar estudiante (`estado = INACTIVO`, no borra) |
 
 *(Nota: Los endpoints CRUD para `/api/estudiantes/programas` y `/api/estudiantes/documentos` siguen exactamente la misma convención REST. Consultar Swagger para más detalles).*
 

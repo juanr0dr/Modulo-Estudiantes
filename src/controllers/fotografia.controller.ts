@@ -5,17 +5,20 @@ import { subirArchivo, eliminarArchivo } from '../config/s3';
 import { TIPOS_FOTOGRAFIA } from '../middlewares/subidaFotografia';
 import { esIdValido } from '../utils/objectId';
 import { serializarEstudianteConUrl } from '../utils/serializadores';
+import { ERRORES_NEGOCIO } from '../utils/validacion';
 
 // POST - Subir/reemplazar la fotografía del estudiante (el archivo va directo a S3)
 export const subirFotografia = async (req: Request, res: Response): Promise<any> => {
   const id = req.params.id as string;
   if (!esIdValido(id)) {
+    res.locals.errorType = ERRORES_NEGOCIO.idInvalido;
     return res.status(400).json({ mensaje: 'ID de estudiante inválido' });
   }
 
   try {
     const estudiante = await prisma.estudiante.findUnique({ where: { id }, include: { fotografia: true } });
     if (!estudiante) {
+      res.locals.errorType = ERRORES_NEGOCIO.estudianteNoExiste;
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
     }
 
@@ -52,6 +55,7 @@ export const subirFotografia = async (req: Request, res: Response): Promise<any>
 
     if (!actualizado) {
       await eliminarArchivo(clave).catch(() => undefined);
+      res.locals.errorType = ERRORES_NEGOCIO.estudianteNoExiste;
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
     }
 

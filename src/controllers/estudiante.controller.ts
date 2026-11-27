@@ -1,10 +1,17 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { eliminarArchivo } from '../config/s3';
 import { generarId } from '../utils/objectId';
 import { serializarEstudiante, serializarEstudianteConUrl } from '../utils/serializadores';
-import { Campos, describirError, esNoEncontrado, validar } from '../utils/validacion';
+import {
+  Campos, ERRORES_NEGOCIO, ValidationError, describirError, esNoEncontrado, tipoErrorNegocio, validar,
+} from '../utils/validacion';
+
+// "No borrar, usar estados": DELETE marca INACTIVO y PUT permite reactivar
+export const ESTADOS_ESTUDIANTE = ['ACTIVO', 'INACTIVO'] as const;
+type EstadoEstudiante = (typeof ESTADOS_ESTUDIANTE)[number];
+const esEstadoValido = (valor: unknown): valor is EstadoEstudiante =>
+  typeof valor === 'string' && (ESTADOS_ESTUDIANTE as readonly string[]).includes(valor);
 
 const CAMPOS_ESTUDIANTE: Campos = {
   nombre: { tipo: 'string', requerido: true },
@@ -50,6 +57,20 @@ const datosEstudiante = (cuerpo: Record<string, any> = {}, parcial: boolean) => 
     contacto = validar('Estudiante', CAMPOS_CONTACTO, cuerpo.contacto, { prefijo: 'contacto.' });
   }
 
+  // Estado: solo en actualización (al crear siempre es ACTIVO por defecto)
+  let estado: EstadoEstudiante | undefined;
+  if (parcial && cuerpo.estado !== undefined) {
+    if (!esEstadoValido(cuerpo.estado)) {
+      throw new ValidationError('Estudiante', {
+        estado: {
+          path: 'estado',
+          message: `\`${String(cuerpo.estado)}\` is not a valid enum value for path \`estado\` (ACTIVO | INACTIVO).`,
+        },
+      }, parcial);
+    }
+    estado = cuerpo.estado;
+  }
+
   return {
     ...(datos.nombre !== undefined && { nombre: datos.nombre }),
     ...(datos.apellido !== undefined && { apellido: datos.apellido }),
@@ -57,6 +78,7 @@ const datosEstudiante = (cuerpo: Record<string, any> = {}, parcial: boolean) => 
     ...(datos.fecha_nacimiento !== undefined && { fechaNacimiento: datos.fecha_nacimiento }),
     ...(datos.programa !== undefined && { programaId: datos.programa }),
     ...contacto,
+    ...(estado !== undefined && { estado }),
   };
 };
 
@@ -69,6 +91,7 @@ export const crearEstudiante = async (req: Request, res: Response): Promise<void
     });
     res.status(201).json(serializarEstudiante(estudianteGuardado));
   } catch (error) {
+    res.locals.errorType = tipoErrorNegocio(error);
     res.status(400).json({ mensaje: 'Error al crear estudiante', error: describirError(error) });
   }
 };
@@ -90,9 +113,17 @@ export const obtenerEstudiantes = async (req: Request, res: Response): Promise<v
     const programa = req.query.programa as string; // Filtro 1: Exacto por FK
     const ciudad = req.query.ciudad as string;     // Filtro 2: Ciudad de contacto (parcial, sin mayúsculas)
     const search = req.query.search as string;     // Filtro 3: Búsqueda libre
+    const estado = req.query.estado as string;     // Opcional: ACTIVO | INACTIVO (sin filtro: todos)
+
+    if (estado !== undefined && !esEstadoValido(estado)) {
+      res.locals.errorType = ERRORES_NEGOCIO.estadoInvalido;
+      res.status(400).json({ mensaje: 'El filtro estado debe ser ACTIVO o INACTIVO' });
+      return;
+    }
 
     const where: Prisma.EstudianteWhereInput = {};
     if (programa) where.programaId = String(programa);
+    if (estado) where.estado = estado;
     if (ciudad) where.ciudad = { contains: String(ciudad), mode: 'insensitive' };
     if (search) {
       where.OR = ['nombre', 'apellido', 'correo'].map((campo) => ({
@@ -125,9 +156,11 @@ export const obtenerEstudiantePorId = async (req: Request, res: Response): Promi
       include: INCLUIR_LECTURA,
     });
     if (!estudiante) {
-      return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
+      res.locals.errorType = ERRORES_NEGOCIO.estudianteNoExiste;
+      return res.status(404).json({ mensaje: 'Estudiante no encontrado', errorType: ERRORES_NEGOCIO.estudianteNoExiste });
     }
-    // Incluye fotografia.url (URL firmada de S3), que el Gateway expone en /detalle
+    // Incluye estado (Inscripciones debe exigir estado === 'ACTIVO') y fotografia.url
+    // (URL firmada de S3), que el Gateway expone en /detalle
     res.status(200).json(await serializarEstudianteConUrl(estudiante));
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al buscar el estudiante', error: describirError(error) });
@@ -145,28 +178,28 @@ export const actualizarEstudiante = async (req: Request, res: Response): Promise
     res.status(200).json(serializarEstudiante(estudianteActualizado));
   } catch (error) {
     if (esNoEncontrado(error)) {
+      res.locals.errorType = ERRORES_NEGOCIO.estudianteNoExiste;
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
     }
+    res.locals.errorType = tipoErrorNegocio(error);
     res.status(400).json({ mensaje: 'Error al actualizar', error: describirError(error) });
   }
 };
 
-// 5. DELETE - Eliminar Estudiante (sus documentos y fotografía se eliminan en cascada)
+// 5. DELETE - Desactivar Estudiante ("no borrar, usar estados")
+// No elimina la fila: marca estado = INACTIVO. Se conservan la fotografía en S3 y los
+// documentos, porque el estudiante sigue existiendo (y otros módulos lo referencian).
+// Idempotente: si ya estaba INACTIVO responde 204 igual.
 export const eliminarEstudiante = async (req: Request, res: Response): Promise<any> => {
   try {
-    const estudianteEliminado = await prisma.estudiante.delete({
+    await prisma.estudiante.update({
       where: { id: req.params.id as string },
-      include: { fotografia: true },
+      data: { estado: 'INACTIVO' },
     });
-    // La fotografía en S3 deja de estar referenciada
-    const claveFotografia = estudianteEliminado.fotografia?.claveS3;
-    if (claveFotografia) {
-      eliminarArchivo(claveFotografia).catch((error) =>
-        console.error(`No se pudo eliminar la fotografía ${claveFotografia}`, error));
-    }
     res.status(204).send();
   } catch (error) {
     if (esNoEncontrado(error)) {
+      res.locals.errorType = ERRORES_NEGOCIO.estudianteNoExiste;
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
     }
     res.status(500).json({ mensaje: 'Error al eliminar', error: describirError(error) });

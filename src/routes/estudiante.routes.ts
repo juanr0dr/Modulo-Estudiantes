@@ -53,6 +53,24 @@ router.use('/documentos', documentoRoutes);
  *           $ref: '#/components/schemas/Contacto'
  *         fotografia:
  *           $ref: '#/components/schemas/Fotografia'
+ *         estado:
+ *           type: string
+ *           enum: [ACTIVO, INACTIVO]
+ *           default: ACTIVO
+ *           description: >-
+ *             Estado del estudiante ("no borrar, usar estados"). Al crear siempre es ACTIVO;
+ *             DELETE lo pasa a INACTIVO y PUT permite cambiarlo (p. ej. reactivar).
+ *             Otros módulos (Inscripciones) deben exigir ACTIVO.
+ *     ErrorNegocio:
+ *       type: object
+ *       properties:
+ *         mensaje:
+ *           type: string
+ *           example: Estudiante no encontrado
+ *         errorType:
+ *           type: string
+ *           example: EstudianteNoExiste
+ *           description: Código de error de negocio (también se registra en res.locals.errorType para el datalake)
  *     Fotografia:
  *       type: object
  *       readOnly: true
@@ -119,9 +137,19 @@ router.use('/documentos', documentoRoutes);
  *         schema:
  *           type: string
  *         description: Búsqueda libre en nombre, apellido o correo
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *           enum: [ACTIVO, INACTIVO]
+ *         description: Filtro opcional por estado; sin él se devuelven todos (activos e inactivos)
  *     responses:
  *       200:
- *         description: Lista de estudiantes obtenida exitosamente.
+ *         description: Lista de estudiantes obtenida exitosamente (cada uno incluye `estado`).
+ *       400:
+ *         description: El filtro estado no es ACTIVO ni INACTIVO (errorType EstadoInvalido).
+ *       500:
+ *         description: Error interno.
  */
 router.get('/', obtenerEstudiantes);
 
@@ -132,7 +160,9 @@ router.get('/', obtenerEstudiantes);
  *     summary: Obtiene un estudiante por ID
  *     tags:
  *       - Estudiantes
- *     description: Endpoint crítico que consumirá el Gateway para el orquestador (BFF).
+ *     description: >-
+ *       Endpoint crítico que consumen el Gateway (BFF) e Inscripciones. Devuelve también
+ *       los estudiantes INACTIVO (con 200): quien consume debe revisar `estado`.
  *     parameters:
  *       - in: path
  *         name: id
@@ -141,9 +171,17 @@ router.get('/', obtenerEstudiantes);
  *           type: string
  *     responses:
  *       200:
- *         description: Estudiante encontrado.
+ *         description: Estudiante encontrado (incluye `estado`).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Estudiante'
  *       404:
  *         description: Estudiante no encontrado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNegocio'
  */
 router.get('/:id', obtenerEstudiantePorId);
 
@@ -175,6 +213,9 @@ router.post('/', crearEstudiante);
  *     summary: Actualiza un estudiante existente
  *     tags:
  *       - Estudiantes
+ *     description: >-
+ *       Actualización parcial. Acepta `estado` opcional (ACTIVO | INACTIVO) para
+ *       desactivar o reactivar al estudiante; cualquier otro valor responde 400.
  *     parameters:
  *       - in: path
  *         name: id
@@ -190,6 +231,8 @@ router.post('/', crearEstudiante);
  *     responses:
  *       200:
  *         description: Estudiante actualizado.
+ *       400:
+ *         description: Datos inválidos (p. ej. estado distinto de ACTIVO/INACTIVO, correo duplicado).
  *       404:
  *         description: Estudiante no encontrado.
  */
@@ -199,9 +242,13 @@ router.put('/:id', actualizarEstudiante);
  * @swagger
  * /api/estudiantes/{id}:
  *   delete:
- *     summary: Elimina un estudiante
+ *     summary: Desactiva un estudiante (borrado lógico)
  *     tags:
  *       - Estudiantes
+ *     description: >-
+ *       No borra el registro: lo marca como INACTIVO. Se conservan la fotografía en S3 y
+ *       los documentos. Es idempotente (si ya estaba INACTIVO responde 204 igual).
+ *       Para reactivarlo, usar PUT con { "estado": "ACTIVO" }.
  *     parameters:
  *       - in: path
  *         name: id
@@ -210,7 +257,7 @@ router.put('/:id', actualizarEstudiante);
  *           type: string
  *     responses:
  *       204:
- *         description: Estudiante eliminado (Sin contenido).
+ *         description: Estudiante marcado como INACTIVO (Sin contenido).
  *       404:
  *         description: Estudiante no encontrado.
  */

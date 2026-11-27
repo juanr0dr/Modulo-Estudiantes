@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
+import { ERRORES_NEGOCIO } from '../utils/validacion';
 
 export const CAMPO_FOTOGRAFIA = 'fotografia';
 export const TAMANO_MAXIMO_FOTOGRAFIA = 2 * 1024 * 1024; // 2 MB
@@ -43,13 +44,16 @@ export const recibirFotografia = (req: Request, res: Response, next: NextFunctio
   upload.single(CAMPO_FOTOGRAFIA)(req, res, (err: unknown) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
+        res.locals.errorType = ERRORES_NEGOCIO.fotografiaMuyGrande;
         res.status(413).json({ mensaje: 'La fotografía supera el tamaño máximo permitido de 2 MB' });
         return;
       }
+      res.locals.errorType = ERRORES_NEGOCIO.fotografiaFaltante;
       res.status(400).json({ mensaje: `Se espera un único archivo en el campo "${CAMPO_FOTOGRAFIA}"` });
       return;
     }
     if (err instanceof FormatoNoPermitidoError) {
+      res.locals.errorType = ERRORES_NEGOCIO.fotografiaFormatoInvalido;
       res.status(400).json({ mensaje: 'Formato no permitido: la fotografía debe ser JPG o PNG' });
       return;
     }
@@ -58,10 +62,12 @@ export const recibirFotografia = (req: Request, res: Response, next: NextFunctio
       return;
     }
     if (!req.file) {
+      res.locals.errorType = ERRORES_NEGOCIO.fotografiaFaltante;
       res.status(400).json({ mensaje: `Debe enviar la fotografía en el campo "${CAMPO_FOTOGRAFIA}" (multipart/form-data)` });
       return;
     }
     if (!firmaValida(req.file.buffer, req.file.mimetype)) {
+      res.locals.errorType = ERRORES_NEGOCIO.fotografiaFormatoInvalido;
       res.status(400).json({ mensaje: 'El contenido del archivo no corresponde a una imagen JPG o PNG' });
       return;
     }
