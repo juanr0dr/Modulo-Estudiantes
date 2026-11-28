@@ -6,6 +6,7 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
 import path from 'path';
 import { prisma } from './config/prisma';
+import { datalakeLog } from './middlewares/datalakeLog';
 
 // NUEVO: Importamos las rutas de estudiante (incluye anidadas /programas y /documentos)
 import estudianteRoutes from './routes/estudiante.routes';
@@ -15,6 +16,11 @@ if (!process.env.DATABASE_URL) {
 }
 
 const app = express();
+// Datalake: una línea JSON "DLK ..." por petición. Va primero para medir la latencia
+// desde la llegada y registrar también lo que cors/express.json responden por su cuenta
+// (preflight OPTIONS, JSON malformado, cuerpo demasiado grande). El cuerpo se lee al
+// terminar la respuesta, cuando express.json ya lo interpretó.
+app.use(datalakeLog);
 app.use(cors());
 app.use(express.json());
 

@@ -11,6 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
+    "test": "npm run test:smoke && npm run test:unit",
+    "test:unit": "node --import tsx --test \"tests/**/*.test.ts\"",
     "test:smoke": "node scripts/smoke-test.cjs"
   },
   "keywords": [],
