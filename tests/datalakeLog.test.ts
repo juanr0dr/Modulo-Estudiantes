@@ -134,6 +134,20 @@ describe('datalakeLog', () => {
     assert.equal(r.headers.get('x-trace-id'), linea.trace_id);
   });
 
+  test('genera un x-trace-id nuevo si el recibido no cumple ^[A-Za-z0-9-]{1,128}$', async () => {
+    const invalidos = ['traza con espacios', 'abc_123', 'a.b', '<script>', 'x'.repeat(129), 'ñandú'];
+    for (const invalido of invalidos) {
+      const { r, linea } = await pedir(`/api/estudiantes/${ID}`, { headers: { 'x-trace-id': invalido } });
+      assert.match(linea.trace_id, /^[0-9a-f]{16}$/, `debió regenerarse para ${JSON.stringify(invalido)}`);
+      assert.equal(r.headers.get('x-trace-id'), linea.trace_id);
+    }
+    // Límite: 128 caracteres válidos sí se reutilizan
+    const largoMaximo = 'A-'.repeat(64);
+    const { r, linea } = await pedir(`/api/estudiantes/${ID}`, { headers: { 'x-trace-id': largoMaximo } });
+    assert.equal(linea.trace_id, largoMaximo);
+    assert.equal(r.headers.get('x-trace-id'), largoMaximo);
+  });
+
   test('/api/auth/login y /api/auth/registro no guardan el cuerpo', async () => {
     const json = { 'content-type': 'application/json' };
     const login = await pedir('/api/auth/login', { method: 'POST', headers: json, body: '{"correo":"a@b.co","password":"secreta"}' });

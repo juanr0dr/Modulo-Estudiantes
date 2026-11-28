@@ -43,6 +43,7 @@ const RUTAS_EXCLUIDAS = [/^\/health(\/|$)/, /^\/actuator(\/|$)/, /^\/docs(\/|$)/
 // Rutas cuyo cuerpo NUNCA se registra (credenciales)
 const RUTAS_CUERPO_OMITIDO = [/^\/api\/auth\/login\/?$/i, /^\/api\/auth\/registro\/?$/i];
 
+const TRACE_ID_VALIDO = /^[A-Za-z0-9-]{1,128}$/;
 const generarTraceId = (): string => randomBytes(8).toString('hex');
 
 // Primer valor de un encabezado (Node puede entregar arreglos) o null
@@ -140,7 +141,9 @@ export const crearDatalakeLog = ({ service, escribir = escritorPorDefecto }: Opc
     try {
       const inicio = process.hrtime.bigint();
       const ts = new Date().toISOString(); // llegada de la petición (UTC, ms, Z)
-      const traceId = encabezado(req, ENCABEZADO_TRAZA) ?? generarTraceId();
+      // Solo se reutiliza un x-trace-id con formato seguro; si no, se genera uno nuevo
+      const recibido = encabezado(req, ENCABEZADO_TRAZA);
+      const traceId = recibido !== null && TRACE_ID_VALIDO.test(recibido) ? recibido : generarTraceId();
       res.locals.traceId = traceId;
       // Toda respuesta lleva x-trace-id (también las excluidas del log)
       res.setHeader(ENCABEZADO_TRAZA, traceId);
